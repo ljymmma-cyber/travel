@@ -124,6 +124,7 @@ pnpm build
 | Design Tokens          | [docs/design-tokens.md](./docs/design-tokens.md)                                                       |
 | Git Strategy           | [docs/git-strategy.md](./docs/git-strategy.md)                                                         |
 | Sprint Backlog         | [docs/sprint-backlog.md](./docs/sprint-backlog.md)                                                     |
+| Persistence            | [docs/persistence-architecture.md](./docs/persistence-architecture.md)                                 |
 
 ## Roadmap
 
@@ -132,4 +133,4 @@ pnpm build
 - Sprint 2: AI generation workflow
 - Sprint 3: Trip detail and timeline
 - Sprint 4: Modify flow and budget optimization
-- Sprint 5: Map, export, sharing, and production hardening
+- Sprint 5: Persistent workspace, Supabase Auth, My Trips, and version history
