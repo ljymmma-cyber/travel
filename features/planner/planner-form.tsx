@@ -4,6 +4,7 @@ import * as React from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { motion } from "framer-motion";
 import { ArrowRight, Check, Loader2, Sparkles } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { Controller, useForm, useWatch } from "react-hook-form";
 
 import { Badge } from "@/components/ui/badge";
@@ -101,6 +102,7 @@ function toggleTag(values: string[], value: string) {
 }
 
 export function PlannerForm() {
+  const router = useRouter();
   const [isThinking, setIsThinking] = React.useState(false);
   const [submittedValues, setSubmittedValues] = React.useState<PlannerInput | null>(null);
 
@@ -134,7 +136,8 @@ export function PlannerForm() {
   async function onSubmit(data: PlannerInput) {
     setSubmittedValues(data);
     setIsThinking(true);
-    await new Promise((resolve) => window.setTimeout(resolve, 1200));
+    await new Promise((resolve) => window.setTimeout(resolve, 600));
+    router.push("/trips/mock");
   }
 
   if (isThinking) {
@@ -152,8 +155,7 @@ export function PlannerForm() {
             </div>
             <CardTitle>Preparing your AI travel brief</CardTitle>
             <CardDescription>
-              Sprint 1 validates your inputs and prepares the transition. Sprint 2 will connect the
-              AI planning workflow.
+              Validating your trip constraints and turning them into an executable timeline.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
