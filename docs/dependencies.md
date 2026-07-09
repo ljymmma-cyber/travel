@@ -17,6 +17,7 @@ This document explains why each major dependency exists in the AI Travel Planner
 |---|---|
 | `openai` | Official OpenAI SDK for server-side model calls |
 | `ai` | Vercel AI SDK for streaming, provider abstraction, and AI workflow ergonomics |
+| `@ai-sdk/openai` | OpenAI provider adapter for Vercel AI SDK |
 
 ## Supabase
 
@@ -33,6 +34,9 @@ This document explains why each major dependency exists in the AI Travel Planner
 | `clsx` | Conditional class composition |
 | `tailwind-merge` | Safe Tailwind class merging |
 | `lucide-react` | Icon system |
+| `@radix-ui/react-dialog` | Accessible dialog primitive |
+| `@radix-ui/react-slot` | Slot primitive for composable components such as `Button asChild` |
+| `vaul` | Drawer primitive compatible with shadcn/ui patterns |
 | `next-themes` | Light/dark/system theme support |
 | `sonner` | Toast notifications |
 | `tw-animate-css` | Tailwind-compatible animation utilities for modern shadcn/ui setup |
