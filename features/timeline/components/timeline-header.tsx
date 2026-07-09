@@ -1,4 +1,12 @@
-import { CalendarDays, Download, PencilLine, Share2, Sparkles } from "lucide-react";
+import {
+  CalendarDays,
+  Download,
+  PencilLine,
+  RotateCcw,
+  RotateCw,
+  Share2,
+  Sparkles,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -6,7 +14,21 @@ import type { TravelPlan } from "@/features/ai/schemas/travel-plan.schema";
 
 import { formatMoney } from "../lib/timeline-utils";
 
-export function TimelineHeader({ plan }: { plan: TravelPlan }) {
+export function TimelineHeader({
+  plan,
+  canUndo = false,
+  canRedo = false,
+  onModify,
+  onUndo,
+  onRedo,
+}: {
+  plan: TravelPlan;
+  canUndo?: boolean;
+  canRedo?: boolean;
+  onModify?: () => void;
+  onUndo?: () => void;
+  onRedo?: () => void;
+}) {
   return (
     <header className="bg-card rounded-xl border p-5 shadow-sm sm:p-6">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
@@ -40,7 +62,15 @@ export function TimelineHeader({ plan }: { plan: TravelPlan }) {
             <Download aria-hidden="true" />
             Export
           </Button>
-          <Button size="sm">
+          <Button variant="outline" size="sm" disabled={!canUndo} onClick={onUndo}>
+            <RotateCcw aria-hidden="true" />
+            Undo
+          </Button>
+          <Button variant="outline" size="sm" disabled={!canRedo} onClick={onRedo}>
+            <RotateCw aria-hidden="true" />
+            Redo
+          </Button>
+          <Button size="sm" onClick={onModify}>
             <PencilLine aria-hidden="true" />
             Modify
           </Button>

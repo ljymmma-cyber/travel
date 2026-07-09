@@ -1,15 +1,29 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-
+import { applyTravelPlanPatch } from "@/features/ai/replanning/json-patch";
+import { validateReplanPatchScope } from "@/features/ai/replanning/patch-validator";
+import { diffTravelPlans, type TravelPlanDiff } from "@/features/ai/diff/travel-plan-diff";
+import {
+  createReplanHistory,
+  pushReplanHistory,
+  redoReplan,
+  undoReplan,
+  type ReplanHistoryState,
+} from "@/features/ai/history/replan-history";
+import type { ReplanRequest } from "@/features/ai/schemas/replanning.schema";
 import type { TravelPlan } from "@/features/ai/schemas/travel-plan.schema";
 
 import { BudgetCard } from "./budget-card";
 import { MapPreview } from "./map-preview";
+import { ModifyPanel } from "./modify-panel";
 import { NotesCard } from "./notes-card";
 import { TimelineHeader } from "./timeline-header";
 import { TripOverview } from "./trip-overview";
 import { TravelTimeline } from "./travel-timeline";
+import { createMockReplanPatch } from "../lib/mock-replanning";
+import type { ModifyPanelState } from "../types/replanning-ui.types";
 
 type TimelineShellProps = {
   plan: TravelPlan | null;
@@ -17,6 +31,24 @@ type TimelineShellProps = {
 };
 
 export function TimelineShell({ plan, state = "ready" }: TimelineShellProps) {
+  const [history, setHistory] = useState<ReplanHistoryState | null>(() =>
+    plan ? createReplanHistory(plan) : null,
+  );
+  const [favoriteActivityIds, setFavoriteActivityIds] = useState<string[]>([]);
+  const [lockedActivityIds, setLockedActivityIds] = useState<string[]>([]);
+  const [latestDiff, setLatestDiff] = useState<TravelPlanDiff | null>(null);
+  const [replanError, setReplanError] = useState<string | null>(null);
+  const [modifyPanel, setModifyPanel] = useState<ModifyPanelState>({
+    open: false,
+    targetDayId: plan?.days[0]?.id ?? "",
+  });
+  const activePlan = history?.present ?? plan;
+  const activityStatuses = useMemo(() => {
+    const map = new Map<string, string>();
+    latestDiff?.activities.forEach((activity) => map.set(activity.activityId, activity.status));
+    return map;
+  }, [latestDiff]);
+
   if (state === "loading" || state === "streaming") {
     return <TimelineSkeleton isStreaming={state === "streaming"} />;
   }
@@ -25,17 +57,136 @@ export function TimelineShell({ plan, state = "ready" }: TimelineShellProps) {
     return <TimelineErrorState type={state} />;
   }
 
-  if (!plan || state === "empty") {
+  if (!activePlan || state === "empty") {
     return <TimelineEmptyState />;
+  }
+
+  function openModifyPanel(targetDayId: string, targetActivityId?: string) {
+    setModifyPanel({ open: true, targetDayId, targetActivityId });
+  }
+
+  function handleGeneratePatch(request: ReplanRequest) {
+    if (!history) {
+      return;
+    }
+
+    try {
+      setReplanError(null);
+      const patchResponse = createMockReplanPatch(history.present, request);
+      const scopeIssues = validateReplanPatchScope(history.present, request, patchResponse.patches);
+
+      if (scopeIssues.length > 0) {
+        setLatestDiff(null);
+        setReplanError(scopeIssues[0]?.message ?? "Patch was rejected by scope validation.");
+        setModifyPanel((current) => ({ ...current, open: false }));
+        return;
+      }
+
+      const applyResult = applyTravelPlanPatch(history.present, patchResponse.patches);
+
+      if (!applyResult.ok) {
+        setReplanError(applyResult.error);
+        setModifyPanel((current) => ({ ...current, open: false }));
+        return;
+      }
+
+      const diff = diffTravelPlans(history.present, applyResult.plan);
+      setLatestDiff(diff);
+      setHistory(
+        pushReplanHistory(history, {
+          id: crypto.randomUUID(),
+          createdAt: new Date().toISOString(),
+          request,
+          before: history.present,
+          after: applyResult.plan,
+          patchResponse,
+          diff,
+        }),
+      );
+      setModifyPanel((current) => ({ ...current, open: false }));
+    } catch (error) {
+      setLatestDiff(null);
+      setReplanError(error instanceof Error ? error.message : "Partial replanning failed.");
+      setModifyPanel((current) => ({ ...current, open: false }));
+    }
+  }
+
+  function handleUndo() {
+    if (!history) {
+      return;
+    }
+
+    const next = undoReplan(history);
+    setHistory(next);
+    setLatestDiff(next.past.at(-1)?.diff ?? null);
+  }
+
+  function handleRedo() {
+    if (!history) {
+      return;
+    }
+
+    const next = redoReplan(history);
+    setHistory(next);
+    setLatestDiff(next.past.at(-1)?.diff ?? null);
+  }
+
+  function toggleFavorite(activityId: string) {
+    setFavoriteActivityIds((current) =>
+      current.includes(activityId)
+        ? current.filter((id) => id !== activityId)
+        : [...current, activityId],
+    );
+  }
+
+  function toggleLock(activityId: string) {
+    setLockedActivityIds((current) =>
+      current.includes(activityId)
+        ? current.filter((id) => id !== activityId)
+        : [...current, activityId],
+    );
+  }
+
+  function handleDeleteActivity(targetDayId: string, targetActivityId: string) {
+    handleGeneratePatch({
+      action: "delete_activity",
+      targetDayId,
+      targetActivityId,
+      reasons: ["not_interested"],
+      lockedActivityIds,
+      favoriteActivityIds,
+      constraints: {
+        keepFavorites: true,
+        avoidCrowds: false,
+      },
+    });
   }
 
   return (
     <main className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-6">
-          <TimelineHeader plan={plan} />
-          <TripOverview plan={plan} />
-          <TravelTimeline plan={plan} />
+          <TimelineHeader
+            plan={activePlan}
+            canUndo={Boolean(history?.past.length)}
+            canRedo={Boolean(history?.future.length)}
+            onModify={() => openModifyPanel(activePlan.days[0]?.id ?? "")}
+            onUndo={handleUndo}
+            onRedo={handleRedo}
+          />
+          {replanError ? <ReplanError message={replanError} /> : null}
+          {latestDiff ? <DiffSummary diff={latestDiff} /> : null}
+          <TripOverview plan={activePlan} />
+          <TravelTimeline
+            plan={activePlan}
+            activityStatuses={activityStatuses}
+            favoriteActivityIds={favoriteActivityIds}
+            lockedActivityIds={lockedActivityIds}
+            onModifyActivity={openModifyPanel}
+            onDeleteActivity={handleDeleteActivity}
+            onToggleFavorite={toggleFavorite}
+            onToggleLock={toggleLock}
+          />
         </div>
 
         <motion.aside
@@ -44,12 +195,62 @@ export function TimelineShell({ plan, state = "ready" }: TimelineShellProps) {
           transition={{ duration: 0.35, ease: "easeOut" }}
           className="space-y-5 lg:sticky lg:top-6 lg:self-start"
         >
-          <MapPreview plan={plan} />
-          <BudgetCard plan={plan} />
-          <NotesCard plan={plan} />
+          <MapPreview plan={activePlan} />
+          <BudgetCard plan={activePlan} />
+          <NotesCard plan={activePlan} />
         </motion.aside>
       </div>
+      <ModifyPanel
+        open={modifyPanel.open}
+        plan={activePlan}
+        targetDayId={modifyPanel.targetDayId}
+        targetActivityId={modifyPanel.targetActivityId}
+        lockedActivityIds={lockedActivityIds}
+        favoriteActivityIds={favoriteActivityIds}
+        onOpenChange={(open) => setModifyPanel((current) => ({ ...current, open }))}
+        onGenerate={handleGeneratePatch}
+      />
     </main>
+  );
+}
+
+function ReplanError({ message }: { message: string }) {
+  return (
+    <section className="border-destructive/30 bg-card rounded-xl border p-4 shadow-sm">
+      <p className="text-destructive text-sm font-medium">Patch rejected</p>
+      <p className="text-muted-foreground mt-1 text-sm">{message}</p>
+    </section>
+  );
+}
+
+function DiffSummary({ diff }: { diff: TravelPlanDiff }) {
+  const added = diff.activities.filter((activity) => activity.status === "added").length;
+  const modified = diff.activities.filter((activity) => activity.status === "modified").length;
+  const removed = diff.activities.filter((activity) => activity.status === "removed").length;
+
+  return (
+    <section className="bg-card rounded-xl border p-4 shadow-sm" aria-label="AI change summary">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm font-medium">AI changed only the selected scope</p>
+          <p className="text-muted-foreground mt-1 text-sm">
+            {diff.preservedDayIds.length} day(s) preserved. Review highlighted timeline blocks
+            below.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2 text-xs">
+          <span className="rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1 text-emerald-700">
+            {added} added
+          </span>
+          <span className="rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-amber-700">
+            {modified} modified
+          </span>
+          <span className="bg-muted text-muted-foreground rounded-full border px-3 py-1">
+            {removed} removed
+          </span>
+        </div>
+      </div>
+    </section>
   );
 }
 

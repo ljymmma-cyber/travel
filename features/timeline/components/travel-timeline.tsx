@@ -7,7 +7,25 @@ import type { TravelPlan } from "@/features/ai/schemas/travel-plan.schema";
 import { getDayMetrics, getMockWeather } from "../lib/timeline-utils";
 import { DayCard } from "./day-card";
 
-export function TravelTimeline({ plan }: { plan: TravelPlan }) {
+export function TravelTimeline({
+  plan,
+  activityStatuses,
+  favoriteActivityIds,
+  lockedActivityIds,
+  onModifyActivity,
+  onDeleteActivity,
+  onToggleFavorite,
+  onToggleLock,
+}: {
+  plan: TravelPlan;
+  activityStatuses: Map<string, string>;
+  favoriteActivityIds: string[];
+  lockedActivityIds: string[];
+  onModifyActivity: (dayId: string, activityId?: string) => void;
+  onDeleteActivity: (dayId: string, activityId: string) => void;
+  onToggleFavorite: (activityId: string) => void;
+  onToggleLock: (activityId: string) => void;
+}) {
   return (
     <section aria-label="Trip timeline" className="space-y-5">
       <div className="flex items-end justify-between gap-4">
@@ -36,6 +54,13 @@ export function TravelTimeline({ plan }: { plan: TravelPlan }) {
               day={day}
               metrics={getDayMetrics(day)}
               weather={getMockWeather(day.dayIndex)}
+              activityStatuses={activityStatuses}
+              favoriteActivityIds={favoriteActivityIds}
+              lockedActivityIds={lockedActivityIds}
+              onModifyActivity={onModifyActivity}
+              onDeleteActivity={onDeleteActivity}
+              onToggleFavorite={onToggleFavorite}
+              onToggleLock={onToggleLock}
             />
           </motion.div>
         ))}

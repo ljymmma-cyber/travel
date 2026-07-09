@@ -7,6 +7,8 @@ import {
   GripVertical,
   Heart,
   Info,
+  Lock,
+  LockOpen,
   Map,
   RefreshCw,
   Trash2,
@@ -25,12 +27,30 @@ type ActivityCardProps = {
   activity: Activity;
   index: number;
   isLast: boolean;
+  diffStatus?: string;
+  isFavorite: boolean;
+  isLocked: boolean;
+  onModify: () => void;
+  onDelete: () => void;
+  onToggleFavorite: () => void;
+  onToggleLock: () => void;
 };
 
-export function ActivityCard({ activity, index, isLast }: ActivityCardProps) {
+export function ActivityCard({
+  activity,
+  index,
+  isLast,
+  diffStatus = "unchanged",
+  isFavorite,
+  isLocked,
+  onModify,
+  onDelete,
+  onToggleFavorite,
+  onToggleLock,
+}: ActivityCardProps) {
   const [showExplain, setShowExplain] = useState(false);
-  const [bookmarked, setBookmarked] = useState(false);
   const image = getActivityImage(activity);
+  const statusTone = getStatusTone(diffStatus);
 
   return (
     <motion.article
@@ -45,7 +65,9 @@ export function ActivityCard({ activity, index, isLast }: ActivityCardProps) {
         <div className="bg-border absolute top-16 left-[1.1rem] h-6 w-px sm:left-[1.35rem]" />
       ) : null}
 
-      <div className="bg-card hover:border-primary/25 rounded-xl border p-3 shadow-sm transition-colors sm:p-4">
+      <div
+        className={`bg-card hover:border-primary/25 rounded-xl border p-3 shadow-sm transition-colors sm:p-4 ${statusTone.card}`}
+      >
         <div className="grid gap-4 md:grid-cols-[156px_minmax(0,1fr)]">
           <div
             className={`from-muted to-muted/60 flex aspect-[4/3] items-center justify-center rounded-lg bg-gradient-to-br ${image.imageGradient}`}
@@ -67,6 +89,11 @@ export function ActivityCard({ activity, index, isLast }: ActivityCardProps) {
                   <Badge variant="secondary" className="capitalize">
                     {activity.type.replace("-", " ")}
                   </Badge>
+                  <Badge variant="outline" className={statusTone.badge}>
+                    {diffStatus}
+                  </Badge>
+                  {isLocked ? <Badge variant="outline">Locked</Badge> : null}
+                  {isFavorite ? <Badge variant="outline">Favorite</Badge> : null}
                   <span className="text-muted-foreground inline-flex items-center gap-1 text-sm">
                     <Clock className="h-3.5 w-3.5" aria-hidden="true" />
                     {activity.startTime ?? "Flexible"} · {formatDuration(activity.durationMinutes)}
@@ -91,15 +118,28 @@ export function ActivityCard({ activity, index, isLast }: ActivityCardProps) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  aria-label={bookmarked ? "Remove bookmark" : "Bookmark activity"}
-                  onClick={() => setBookmarked((value) => !value)}
+                  aria-label={isFavorite ? "Remove bookmark" : "Bookmark activity"}
+                  onClick={onToggleFavorite}
                 >
-                  {bookmarked ? <Heart aria-hidden="true" /> : <Bookmark aria-hidden="true" />}
+                  {isFavorite ? <Heart aria-hidden="true" /> : <Bookmark aria-hidden="true" />}
                 </Button>
-                <Button variant="ghost" size="icon" aria-label="Replan this activity">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={isLocked ? "Unlock activity" : "Lock activity"}
+                  onClick={onToggleLock}
+                >
+                  {isLocked ? <Lock aria-hidden="true" /> : <LockOpen aria-hidden="true" />}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Replan this activity"
+                  onClick={onModify}
+                >
                   <RefreshCw aria-hidden="true" />
                 </Button>
-                <Button variant="ghost" size="icon" aria-label="Delete activity">
+                <Button variant="ghost" size="icon" aria-label="Delete activity" onClick={onDelete}>
                   <Trash2 aria-hidden="true" />
                 </Button>
               </div>
@@ -144,6 +184,34 @@ export function ActivityCard({ activity, index, isLast }: ActivityCardProps) {
       </div>
     </motion.article>
   );
+}
+
+function getStatusTone(status: string) {
+  if (status === "added") {
+    return {
+      card: "border-emerald-300 bg-emerald-50/40",
+      badge: "border-emerald-300 text-emerald-700",
+    };
+  }
+
+  if (status === "modified") {
+    return {
+      card: "border-amber-300 bg-amber-50/40",
+      badge: "border-amber-300 text-amber-700",
+    };
+  }
+
+  if (status === "removed") {
+    return {
+      card: "opacity-60",
+      badge: "text-muted-foreground",
+    };
+  }
+
+  return {
+    card: "",
+    badge: "text-muted-foreground",
+  };
 }
 
 function Fact({ icon: Icon, label, value }: { icon: typeof Wallet; label: string; value: string }) {

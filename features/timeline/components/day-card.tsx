@@ -24,9 +24,27 @@ type DayCardProps = {
   day: DayPlan;
   metrics: DayTimelineMetrics;
   weather: WeatherSummary;
+  activityStatuses: Map<string, string>;
+  favoriteActivityIds: string[];
+  lockedActivityIds: string[];
+  onModifyActivity: (dayId: string, activityId?: string) => void;
+  onDeleteActivity: (dayId: string, activityId: string) => void;
+  onToggleFavorite: (activityId: string) => void;
+  onToggleLock: (activityId: string) => void;
 };
 
-export function DayCard({ day, metrics, weather }: DayCardProps) {
+export function DayCard({
+  day,
+  metrics,
+  weather,
+  activityStatuses,
+  favoriteActivityIds,
+  lockedActivityIds,
+  onModifyActivity,
+  onDeleteActivity,
+  onToggleFavorite,
+  onToggleLock,
+}: DayCardProps) {
   const [expanded, setExpanded] = useState(true);
 
   return (
@@ -95,6 +113,13 @@ export function DayCard({ day, metrics, weather }: DayCardProps) {
                 activity={activity}
                 index={index}
                 isLast={index === day.activities.length - 1}
+                diffStatus={activityStatuses.get(activity.id)}
+                isFavorite={favoriteActivityIds.includes(activity.id)}
+                isLocked={lockedActivityIds.includes(activity.id)}
+                onModify={() => onModifyActivity(day.id, activity.id)}
+                onDelete={() => onDeleteActivity(day.id, activity.id)}
+                onToggleFavorite={() => onToggleFavorite(activity.id)}
+                onToggleLock={() => onToggleLock(activity.id)}
               />
             ))}
           </div>
