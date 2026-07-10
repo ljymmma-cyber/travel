@@ -137,7 +137,18 @@ export function PlannerForm() {
     setSubmittedValues(data);
     setIsThinking(true);
     await new Promise((resolve) => window.setTimeout(resolve, 600));
-    router.push("/trips/mock");
+
+    const params = new URLSearchParams({
+      destination: data.destination,
+      days: String(data.days),
+      budget: String(data.budget),
+      currency: data.currency,
+      interests: data.interests.join(","),
+      pace: data.pace,
+      transportation: data.transportation,
+    });
+
+    router.push(`/trips/mock?${params.toString()}`);
   }
 
   if (isThinking) {

@@ -1,6 +1,13 @@
 import { TimelineShell } from "@/features/timeline/components/timeline-shell";
-import { mockTravelPlan } from "@/features/timeline/data/mock-travel-plan";
+import { createDemoTravelPlan } from "@/features/timeline/lib/demo-plan";
 
-export default function MockTripTimelinePage() {
-  return <TimelineShell plan={mockTravelPlan} />;
+type MockTripTimelinePageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function MockTripTimelinePage({ searchParams }: MockTripTimelinePageProps) {
+  const params = await searchParams;
+  const plan = createDemoTravelPlan(params);
+
+  return <TimelineShell plan={plan} />;
 }
